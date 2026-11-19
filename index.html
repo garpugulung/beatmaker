@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#e8e6e1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>GarpuGulung BeatMaker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: friendly, plain, engineered — "everyone can make music"
+   IDEA: a pocket groovebox: bone-white rubber pads, a black step strip, one orange signal colour
+   PICTURE: 4x4 pads beside a step panel laid out one row per beat, so the bar reads like counting "1 2 3 4"
+   COLOUR: light grey body #e8e6e1, white surfaces, true black ink, signal orange #ff6600
+   TYPE: IBM Plex Mono everywhere; LAYOUT: thin control strip on top, pads left, steps right; stacks in portrait */
+:root{color-scheme:light;--bg:#e8e6e1;--srf:#f7f6f3;--pad:#f3f1eb;--ink:#111;--mid:#77746c;--line:#c4c1b9;--or:#ff6600;--key:#2b2b2b}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:14px/1.35 "IBM Plex Mono",ui-monospace,monospace;overflow:hidden;overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+#app{display:flex;flex-direction:column;height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+header{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;flex:none;background:var(--bg)}
+header::-webkit-scrollbar{display:none}
+.logo{flex:none;font-size:12px;line-height:1.05;padding-right:6px;white-space:nowrap}
+.logo b{font-weight:700}.logo span{color:var(--or)}
+@media (max-width:1000px){.logo{display:none}}
+.btn{flex:none;font:500 13px "IBM Plex Mono",monospace;color:var(--ink);background:var(--srf);border:1px solid var(--line);border-radius:8px;height:40px;min-width:40px;padding:0 10px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 0 var(--line)}
+.btn:active{transform:translateY(1px);box-shadow:0 1px 0 var(--line)}
+.btn.on{background:var(--or);border-color:#c94f00;color:#fff;box-shadow:0 2px 0 #c94f00}
+.btn.dark{background:var(--key);border-color:#000;color:#fff;box-shadow:0 2px 0 #000}
+.btn.q{animation:blink .5s steps(1) infinite}
+@keyframes blink{50%{background:#ffb380}}
+.btn:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--or);outline-offset:1px}
+#play{min-width:78px;font-weight:700}
+.bpm{display:flex;align-items:center;gap:3px;flex:none}
+.bpm span{width:52px;text-align:center;font-variant-numeric:tabular-nums;font-weight:500}
+.bpm small{display:block;font-size:10px;color:var(--mid);line-height:1}
+.grp{display:flex;gap:3px;flex:none}
+.sp{flex:1}
+main{flex:1;display:flex;gap:10px;padding:10px;min-height:0}
+#pads{flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(4,minmax(0,1fr));gap:7px;aspect-ratio:1;height:100%;max-width:48%}
+.pad{background:var(--pad);border:1px solid var(--line);border-radius:12px;box-shadow:0 3px 0 var(--line);display:flex;align-items:flex-end;padding:6px 7px;font-size:clamp(9px,1.6vh,12px);line-height:1.1;cursor:pointer;touch-action:none;position:relative;overflow:hidden}
+.pad.sel{border-color:var(--or);box-shadow:0 3px 0 var(--or),inset 0 0 0 2px var(--or)}
+.pad.hit{background:var(--or);color:#fff;transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
+.pad.sw{background:var(--or);color:#fff;border-color:#c94f00}
+.pad .dot{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:transparent}
+.pad .dot.has{background:var(--ink)}
+.pad.m{opacity:.4}
+#right{flex:1;display:flex;flex-direction:column;min-height:0;background:var(--srf);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.rhead{display:flex;align-items:baseline;gap:10px;flex:none;margin-bottom:8px}
+.rhead .nm{font-size:clamp(18px,3.4vh,26px);font-weight:700}
+.rhead .info{color:var(--mid);font-size:12px}
+.rhead .mute{margin-left:auto}
+#steps{flex:1;display:flex;flex-direction:column;gap:6px;min-height:0}
+.beat{flex:1;display:grid;grid-template-columns:28px repeat(var(--n),minmax(0,1fr));gap:5px;min-height:0;max-height:64px}
+.beat i{font-style:normal;color:var(--mid);font-size:12px;display:flex;align-items:center}
+.st{border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer}
+.st.first{border-color:#9d998f;border-width:1.5px}
+.st.v1{background:var(--ink);border-color:var(--ink)}
+.st.v2{background:var(--or);border-color:#c94f00}
+.st.now{box-shadow:0 0 0 3px #ff660066}
+#grid{flex:1;overflow:auto;display:none;background:var(--srf);border:1px solid var(--line);border-radius:12px;padding:8px}
+body.gv #grid{display:block}body.gv #right{display:none}
+.tabs{display:flex;flex:none;border:1px solid var(--line);border-radius:9px;overflow:hidden;box-shadow:0 2px 0 var(--line)}
+.tabs .btn{border:0;border-radius:0;box-shadow:none;height:38px}
+/* phones: one full-screen view at a time */
+@media (max-width:999px){body.gv #pads{display:none}
+ body:not(.gv) #right{display:none}
+ body:not(.gv) #pads{flex:1;height:100%;width:100%;max-width:none;max-height:none;aspect-ratio:auto;gap:8px}
+ body:not(.gv) .pad{font-size:13px;padding:8px 10px}}
+.gl .mb{margin-left:auto;font-weight:500;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:10px;background:#fff;color:var(--mid)}
+.gl.mute .mb{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pad.drag{opacity:.55}.pad.over{outline:3px dashed var(--or);outline-offset:-3px}
+body.edit .pad{animation:wig .6s ease-in-out infinite alternate}
+@keyframes wig{from{transform:rotate(-.6deg)}to{transform:rotate(.6deg)}}
+.gr{display:grid;grid-template-columns:86px repeat(var(--n),minmax(0,1fr));gap:3px;height:34px;margin-bottom:3px}
+.gl{font-size:11px;display:flex;align-items:center;padding:0 6px;border-radius:6px;background:var(--bg);cursor:pointer;overflow:hidden;white-space:nowrap}
+.gl.sel{background:var(--ink);color:#fff}.gl.mute{text-decoration:line-through;color:var(--mid)}
+.gc{border-radius:5px;background:#fff;border:1px solid var(--line);cursor:pointer}
+.gc.b2{margin-left:4px}
+.gc.v1{background:var(--ink);border-color:var(--ink)}.gc.v2{background:var(--or);border-color:#c94f00}.gc.now{box-shadow:0 0 0 2px #ff660088}
+@media (orientation:portrait){main{flex-direction:column}#pads{height:auto;width:min(100%,50dvh);max-width:none;aspect-ratio:1;align-self:center}}
+.panel{position:fixed;top:0;bottom:0;width:min(360px,94vw);background:var(--srf);border:1px solid var(--line);transition:transform .22s;overflow-y:auto;padding:12px 14px 24px;z-index:5}
+#menu{right:0;transform:translateX(103%)}#lib{left:0;transform:translateX(-103%)}
+#menu.open,#lib.open{transform:none}
+.panel h2{font-size:14px;margin:4px 0 12px;display:flex;justify-content:space-between;align-items:center}
+.panel h3{font-size:12px;color:var(--mid);font-weight:500;margin:16px 0 6px;border-top:1px solid var(--line);padding-top:12px}
+.seg{display:flex;flex-wrap:wrap;gap:4px}
+.seg .btn{height:36px;font-size:12px;padding:0 9px}
+.row{display:grid;grid-template-columns:84px minmax(0,1fr) 44px;align-items:center;gap:8px;min-height:44px}
+.row label{font-size:12px;color:var(--mid)}
+.row output{font-size:12px;text-align:right}
+input[type=range]{width:100%;accent-color:var(--or);height:30px}
+select,input[type=text],textarea{font:500 14px "IBM Plex Mono",monospace;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;height:40px;padding:0 8px;width:100%}
+textarea{height:84px;padding:8px;font-size:12px;resize:vertical;user-select:text;-webkit-user-select:text}
+.item{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #e3e0d9}
+.item .t{flex:1;cursor:pointer;padding:6px 0}.item .t small{display:block;color:var(--mid);font-size:11px}
+.item .btn{height:34px;font-size:12px}
+.hint{font-size:12px;color:var(--mid);line-height:1.5}
+.chain{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+.chain .btn{padding:0;min-width:0}
+#rot{display:none;position:fixed;left:50%;bottom:12px;transform:translateX(-50%);font-size:12px;color:#fff;background:#111b;padding:6px 10px;border-radius:8px;pointer-events:none;z-index:4;white-space:nowrap}
+@media (orientation:portrait){#rot{display:block}}
+#toast{position:fixed;left:50%;top:58px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:10px;padding:6px 6px 6px 12px;display:none;align-items:center;gap:10px;font-size:12px;z-index:7}
+#toast.show{display:flex}#toast .btn{height:32px}
+#banner{display:none;position:fixed;left:50%;top:6px;transform:translateX(-50%);background:var(--or);color:#fff;border-radius:10px;padding:8px 8px 8px 14px;align-items:center;gap:10px;font-size:13px;z-index:6}
+body.edit #banner{display:flex}
+#intro{position:fixed;inset:0;background:#e8e6e1ee;display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
+#intro.show{display:flex}
+#intro .card{background:var(--srf);border:1px solid var(--line);border-radius:14px;padding:18px 20px;max-width:440px;width:100%}
+#intro h1{font-size:18px;margin:0 0 4px}#intro p{margin:4px 0 12px;color:var(--mid)}
+#intro ol{margin:0 0 16px;padding-left:20px;line-height:1.7}
+#intro b{color:var(--or)}
+@media (prefers-reduced-motion:reduce){body.edit .pad{animation:none}.panel{transition:none}.btn.q{animation:none;background:#ffb380}}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="logo"><b>GarpuGulung</b><span>/</span><br>BeatMaker</div>
+  <button class="btn dark" id="libB">LIBRARY</button>
+  <button class="btn" id="play">▶ PLAY</button>
+  <div class="bpm"><button class="btn" id="bD" aria-label="Tempo down">−</button><span><b id="bV">100</b><small>BPM</small></span><button class="btn" id="bU" aria-label="Tempo up">+</button></div>
+  <button class="btn" id="tap">TAP</button>
+  <div class="grp" id="sec"><button class="btn" data-s="A">A</button><button class="btn" data-s="B">B</button><button class="btn" data-s="C">C</button><button class="btn" data-s="D">D</button><button class="btn" data-s="F">FILL</button></div>
+  <button class="btn" id="chainB">CHAIN</button>
+  <div class="sp"></div>
+  <div class="tabs" id="tabs"><button class="btn" data-v="pad">PADS</button><button class="btn" data-v="grid">PATTERN</button></div>
+  <button class="btn" id="menuB">MENU</button>
+</header>
+<main>
+  <div id="pads" aria-label="Pads"></div>
+  <section id="right">
+    <div class="rhead"><span class="nm" id="sN">Kick</span><span class="info" id="sI"></span><button class="btn mute" id="muteB">MUTE</button></div>
+    <div id="steps"></div>
+  </section>
+  <div id="grid" aria-label="All sounds grid"></div>
+</main>
+</div>
+<div id="rot">Rotate your phone to landscape</div>
+<div id="toast"><span id="tMsg"></span><button class="btn" id="undo">Undo</button></div>
+<div id="banner"><span>Drag a pad onto another to swap them</span><button class="btn" id="doneB">DONE</button></div>
+
+<aside class="panel" id="lib" aria-label="Library">
+  <h2>LIBRARY <button class="btn" id="libX">Close</button></h2>
+  <label class="hint" for="nm">Beat name</label>
+  <input type="text" id="nm" maxlength="40">
+  <div class="seg" style="margin-top:8px"><button class="btn on" id="saveB">Save</button><button class="btn" id="saveNewB">Save as new</button></div>
+  <h3>MY BEATS</h3>
+  <div id="mine"></div>
+  <h3>GENRES (ready to play)</h3>
+  <div id="genres"></div>
+  <h3>BACKUP / MOVE TO ANOTHER PHONE</h3>
+  <div class="seg"><button class="btn" id="expB">Export this beat</button><button class="btn" id="copyB">Copy</button></div>
+  <textarea id="code" placeholder="Paste a beat code here, then tap Import" aria-label="Beat code"></textarea>
+  <div class="seg" style="margin-top:6px"><button class="btn" id="impB">Import</button></div>
+  <p class="hint">Beats are saved in this browser only. Use Export to keep a copy or move it to another phone.</p>
+</aside>
+
+<aside class="panel" id="menu" aria-label="Menu">
+  <h2>MENU <button class="btn" id="menuX">Close</button></h2>
+  <h3 style="border:0;margin-top:0;padding-top:0">TIME SIGNATURE</h3>
+  <div class="seg" id="tsSeg"></div>
+  <h3>SOUNDS</h3>
+  <div class="row"><label for="kit">Kit</label><select id="kit" style="grid-column:span 2"></select></div>
+  <div class="row"><label for="lay">Pad layout</label><select id="lay" style="grid-column:span 2"></select></div>
+  <div class="seg"><button class="btn" id="editB">Move pads around</button></div>
+  <h3>CHAIN (plays in order, then repeats)</h3>
+  <div class="chain" id="chainEd"></div>
+  <p class="hint">Tap a slot to change it: A → B → C → D → empty.</p>
+  <h3>FEEL</h3>
+  <div class="row"><label for="swing">Swing</label><input type="range" id="swing" min="0" max="0.5" step="0.01"><output></output></div>
+  <div class="row"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.01"><output></output></div>
+  <h3>MORE</h3>
+  <div class="seg"><button class="btn" id="clrB">Clear this pattern</button><button class="btn" id="helpB">How to use</button></div>
+</aside>
+
+<div id="intro"><div class="card">
+  <h1>GarpuGulung<span style="color:var(--or)">/</span>BeatMaker</h1>
+  <p>Everyone can make music. Three steps:</p>
+  <ol><li>Press <b>▶ PLAY</b> to hear a beat.</li><li>In <b>PATTERN</b>, tap the squares in a sound's row to add or remove hits. Tap twice for a louder hit.</li><li>In <b>PADS</b>, tap the big pads to play sounds live.</li></ol>
+  <p>Try other styles in <b>LIBRARY</b>. Switch parts with <b>A B C D</b>.</p>
+  <button class="btn on" id="introX">Let's play</button>
+</div></div>
+
+<script>
+{
+/* ---------- data ---------- */
+const TS={'4/4':{g:[4,4,4,4],u:4},'3/4':{g:[4,4,4],u:4},'2/4':{g:[4,4],u:4},'6/8':{g:[6,6],u:6},'12/8':{g:[6,6,6,6],u:6},'5/4':{g:[4,4,4,4,4],u:4},'7/8':{g:[4,4,6],u:4}};
+const NAMES={kick:'Kick',k808:'808 Boom',snare:'Snare',rim:'Rim',clap:'Clap',chh:'Hi-hat',ohh:'Open hat',tomh:'Tom hi',tomm:'Tom mid',toml:'Tom lo',crash:'Crash',ride:'Ride',shaker:'Shaker',tamb:'Tambourine',cowbell:'Cowbell',conga:'Conga',
+ dut:'Dut',tak:'Tak',tung:'Tung',dhang:'Dhang',ketipung:'Ketipung',tek:'Tek',kentong:'Kentong'};
+const KITS={
+ band:{n:'Band kit',lay:{'MPC standard':['crash','ride','cowbell','conga','toml','tomm','tomh','tamb','k808','rim','clap','shaker','kick','snare','chh','ohh'],
+  'Finger drumming':['crash','tomh','tomm','ride','tamb','toml','cowbell','conga','snare','clap','ohh','shaker','kick','k808','chh','rim'],
+  'Drum kit':['crash','tomh','tomm','ride','ohh','rim','toml','cowbell','chh','snare','clap','shaker','tamb','kick','k808','conga']},
+  role:{k:'kick',s:'snare',h:'chh',o:'ohh',c:'crash',t:['tomh','tomm','toml']}},
+ kendang:{n:'Kendang kit',lay:{'Standard':['crash','chh','ohh','shaker','kick','snare','clap','tamb','ketipung','tek','kentong','rim','dut','tak','tung','dhang']},
+  role:{k:'dut',s:'tak',h:'ketipung',o:'tamb',c:'crash',t:['tek','tung','dhang']}}};
+const PRE=[
+ ['Pop','band','4/4',100,0,{kick:'X.....x.X.......',snare:'....X.......X...',chh:'x.x.x.x.x.x.x.x.'}],
+ ['Rock','band','4/4',120,0,{kick:'X.......X.x.....',snare:'....X.......X...',chh:'X.x.X.x.X.x.X.x.'}],
+ ['Funk','band','4/4',100,.12,{kick:'X..x...x..X.....',snare:'....X..x.x..X...',chh:'xxxxxxxxxxxxxxxx'}],
+ ['Disco','band','4/4',120,0,{kick:'X...X...X...X...',snare:'....X.......X...',clap:'....x.......x...',chh:'x...x...x...x...',ohh:'..x...x...x...x.'}],
+ ['Hip-hop (boom bap)','band','4/4',90,.18,{kick:'X......X..X.....',snare:'....X.......X...',chh:'x.x.x.x.x.x.x.x.'}],
+ ['Trap','band','4/4',140,0,{k808:'X......x..x.....',clap:'........X.......',snare:'........X.......',chh:'x.x.x.x.xxx.x.xx'}],
+ ['House','band','4/4',124,0,{kick:'X...X...X...X...',clap:'....X.......X...',ohh:'..x...x...x...x.',shaker:'xxxxxxxxxxxxxxxx'}],
+ ['Reggae (one drop)','band','4/4',76,.2,{kick:'........X.......',rim:'........X.......',chh:'..x...x...x...x.'}],
+ ['Bossa Nova','band','4/4',130,0,{kick:'X..xX..xX..xX..x',rim:'X..X..X...X..X..',shaker:'xxxxxxxxxxxxxxxx'}],
+ ['Dangdut','kendang','4/4',72,0,{dut:'X......x..X.....',tak:'....X.......X...',ketipung:'..x...x...x..x.x',tamb:'..x...x...x...x.'}],
+ ['Koplo','kendang','4/4',130,0,{dut:'X..x..x.X..x..x.',tak:'..X...X...X...X.',ketipung:'x.x.x.x.x.x.x.x.',kentong:'....x.......x...'}],
+ ['Blues shuffle (12/8)','band','12/8',72,0,{kick:'X...........X...........',snare:'......X...........X.....',chh:'x...x.x...x.x...x.x...x.'}],
+ ['Waltz (3/4)','band','3/4',96,0,{kick:'X...........',snare:'....x...x...',chh:'x...x...x...'}],
+ ['Ballad (6/8)','band','6/8',58,0,{kick:'X...........',snare:'......X.....',chh:'x.x.x.x.x.x.'}],
+ ['Jazz (5/4)','band','5/4',170,.33,{ride:'x...x..xx...x..xx...',chh:'....x.......x.......',kick:'X...........x.......'}],
+ ['Odd groove (7/8)','band','7/8',120,0,{kick:'X.......X.....',snare:'....X.......x.',chh:'x.x.x.x.x.x.x.'}],
+ ['Empty','band','4/4',100,0,{}]];
+const SECS=['A','B','C','D','F'];
+const steps=ts=>TS[ts].g.reduce((a,b)=>a+b,0);
+const parse=(s,N)=>Array.from({length:N},(_,i)=>s&&s[i]==='X'?2:s&&s[i]==='x'?1:0);
+const allIds=Object.keys(NAMES);
+function derive(kit,ts,A){const R=KITS[kit].role,N=steps(ts),g=TS[ts].g,st0=[];let a=0;g.forEach(x=>{st0.push(a);a+=x});
+ const cp=p=>Object.fromEntries(Object.entries(p).map(([k,v])=>[k,v.slice()]));const z=()=>Array(N).fill(0);const B=cp(A),C=cp(A),D=cp(A),F=cp(A);
+ if(!Object.values(A).some(r=>r.some(v=>v)))return{B,C,D,F};
+ [B,C,D,F].forEach(p=>allIds.forEach(id=>p[id]=p[id]||z()));
+ if(B[R.h].some(v=>v))B[R.h]=B[R.h].map((v,i)=>v||(i%2===0?1:0));if(!B[R.k][N-2])B[R.k][N-2]=1;
+ C[R.k]=C[R.k].map((v,i)=>i===0?2:0);C[R.h]=C[R.h].map((v,i)=>st0.includes(i)?1:0);
+ Object.assign(D,cp(B));D[R.c][0]=2;st0.forEach(s=>{const m=s+g[st0.indexOf(s)]/2;if(m<N){D[R.o][m]=1;D[R.h][m]=0}});
+ const half=st0[Math.floor(g.length/2)]||Math.floor(N/2);for(let i=half;i<N;i++)allIds.forEach(id=>F[id][i]=0);
+ const L=N-half;for(let i=half;i<N-2;i+=2){const k=Math.min(2,Math.floor((i-half)/(L/3)));F[R.t[k]][i]=i===half?2:1}F[R.s][N-2]=2;F[R.s][N-1]=2;F[R.k][half]=2;
+ return{B,C,D,F}}
+function fromPreset(p){const[name,kit,ts,bpm,swing,rows]=p,N=steps(ts),A={};allIds.forEach(id=>A[id]=parse(rows[id],N));
+ return{name,kit,ts,bpm,swing,pats:Object.assign({A},derive(kit,ts,A)),chain:['A','A','B','A','C','C','D','F'],chainOn:false,libId:null}}
+
+/* ---------- state ---------- */
+const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+const SS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let beat=LS('ggbm_beat',null);if(!beat||!beat.pats||!TS[beat.ts])beat=fromPreset(PRE[0]);
+const prefs=Object.assign({vol:.85,layout:{band:'MPC standard',kendang:'Standard'},custom:{},seen:false,sel:'kick',sec:'A',view:'grid'},LS('ggbm_prefs',{}));
+let lib=LS('ggbm_lib',[]);
+const save=()=>{SS('ggbm_beat',beat);SS('ggbm_prefs',prefs)};
+const $=id=>document.getElementById(id);
+const N=()=>steps(beat.ts);
+function fix(){if(!KITS[beat.kit])beat.kit='band';if(!TS[beat.ts])beat.ts='4/4';beat.mute=beat.mute||[];beat.chain=beat.chain||['A','B','C','D','','','',''];const n=N();SECS.forEach(s=>{beat.pats[s]=beat.pats[s]||{};allIds.forEach(id=>{const a=beat.pats[s][id]||[];beat.pats[s][id]=Array.from({length:n},(_,i)=>a[i]||0)})})}
+fix();
+const pads=()=>prefs.custom[beat.kit]||KITS[beat.kit].lay[prefs.layout[beat.kit]]||Object.values(KITS[beat.kit].lay)[0];
+if(!pads().includes(prefs.sel))prefs.sel=pads()[12];
+
+/* ---------- audio ---------- */
+let ctx,out,noise,openG=null;
+function init(){if(ctx){ctx.resume();return}
+ ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
+ out=ctx.createGain();out.gain.value=prefs.vol;const comp=ctx.createDynamicsCompressor();comp.threshold.value=-9;comp.ratio.value=3;out.connect(comp);comp.connect(ctx.destination);
+ noise=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);const d=noise.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+ try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{})}catch(e){}}
+const G=(t,peak,dec,dst)=>{const g=ctx.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),t+.002);g.gain.exponentialRampToValueAtTime(.0001,t+dec);g.connect(dst||out);return g};
+const Nz=(t,dur,dst)=>{const s=ctx.createBufferSource();s.buffer=noise;s.connect(dst);s.start(t);s.stop(t+dur)};
+const O=(type,f,t,dur,dst)=>{const o=ctx.createOscillator();o.type=type;o.frequency.setValueAtTime(f,t);o.connect(dst);o.start(t);o.stop(t+dur);return o};
+const Fl=(type,f,q,dst)=>{const b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;b.Q.value=q;b.connect(dst);return b};
+function metal(t,v,dec,base,hp,bp){const g=G(t,v,dec),h=Fl('highpass',hp||7000,.7,g),b=Fl('bandpass',bp||10000,.8,h);[2,3,4.16,5.43,6.79,8.21].forEach(r=>O('square',(base||40)*r,t,dec+.02,b));return g}
+function mem(t,v,f0,f1,dec,na,nf){const o=O('sine',f0,t,dec+.05,G(t,v*.9,dec));o.frequency.exponentialRampToValueAtTime(f1,t+.07);
+ O('triangle',f0*1.6,t,dec*.4,G(t,v*.12,dec*.35));Nz(t,.05,Fl('bandpass',nf,1,G(t,v*na,.04)))}
+function tom(t,v,f){const o=O('sine',f*1.3,t,.5,G(t,v*.9,.42));o.frequency.exponentialRampToValueAtTime(f,t+.12);Nz(t,.04,Fl('bandpass',f*5,1,G(t,v*.25,.035)))}
+const V={
+ kick(t,v){const o=O('sine',160,t,.55,G(t,v*1.1,.48));o.frequency.exponentialRampToValueAtTime(48,t+.09);Nz(t,.006,G(t,v*.25,.008))},
+ k808(t,v){const o=O('sine',115,t,1.4,G(t,v*1.05,1.25));o.frequency.exponentialRampToValueAtTime(50,t+.07)},
+ snare(t,v){const a=O('triangle',185,t,.15,G(t,v*.4,.12));a.frequency.exponentialRampToValueAtTime(160,t+.05);O('triangle',330,t,.08,G(t,v*.18,.06));Nz(t,.26,Fl('highpass',1400,.7,G(t,v*.72,.21)))},
+ rim(t,v){O('triangle',1750,t,.05,Fl('bandpass',1750,3,G(t,v*.9,.04)));O('square',480,t,.04,Fl('bandpass',480,2,G(t,v*.25,.03)))},
+ clap(t,v){const g=ctx.createGain();g.connect(out);g.gain.setValueAtTime(.0001,t);[0,.011,.022].forEach(d=>{g.gain.setValueAtTime(v*.9,t+d);g.gain.exponentialRampToValueAtTime(v*.12,t+d+.009)});g.gain.setValueAtTime(v*.8,t+.033);g.gain.exponentialRampToValueAtTime(.0001,t+.26);Nz(t,.3,Fl('bandpass',1150,1.4,g))},
+ chh(t,v){if(openG){openG.gain.cancelScheduledValues(t);openG.gain.setTargetAtTime(.0001,t,.008);openG=null}metal(t,v*.3,.055)},
+ ohh(t,v){openG=metal(t,v*.28,.38)},
+ tomh(t,v){tom(t,v,200)},tomm(t,v){tom(t,v,150)},toml(t,v){tom(t,v,105)},
+ crash(t,v){metal(t,v*.2,1.5,62,5000,8000);Nz(t,1.8,Fl('highpass',6000,.5,G(t,v*.22,1.6)))},
+ ride(t,v){metal(t,v*.12,1.1,48,6000,9000);[620,1540].forEach((f,i)=>O('sine',f,t,1,G(t,v*(i?.05:.08),.9)));Nz(t,.6,Fl('highpass',8000,.5,G(t,v*.05,.5)))},
+ shaker(t,v){const g=ctx.createGain();g.connect(out);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v*.35,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+.09);Nz(t,.1,Fl('bandpass',6500,1.2,g))},
+ tamb(t,v){Nz(t,.2,Fl('highpass',8000,.6,G(t,v*.3,.17)));metal(t,v*.18,.16,70,7000,11000);metal(t+.022,v*.1,.12,74,7000,11000)},
+ cowbell(t,v){const g=ctx.createGain();g.connect(out);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v*.42,t+.002);g.gain.exponentialRampToValueAtTime(v*.12,t+.03);g.gain.exponentialRampToValueAtTime(.0001,t+.34);const bp=Fl('bandpass',820,2.2,g);O('square',587,t,.36,bp);O('square',845,t,.36,bp)},
+ conga(t,v){mem(t,v,330,300,.28,.15,2200)},
+ dut(t,v){mem(t,v,110,82,.5,.1,700)},
+ tak(t,v){Nz(t,.08,Fl('bandpass',1700,1.2,G(t,v*.95,.06)));O('triangle',430,t,.07,G(t,v*.35,.05))},
+ tung(t,v){mem(t,v,215,190,.4,.08,1500)},
+ dhang(t,v){const o=O('sine',92,t,.6,G(t,v,.55));o.frequency.exponentialRampToValueAtTime(140,t+.13);Nz(t,.05,Fl('bandpass',600,1,G(t,v*.12,.04)))},
+ ketipung(t,v){mem(t,v,340,310,.2,.18,2600)},
+ tek(t,v){mem(t,v*.8,560,540,.07,.35,3200)},
+ kentong(t,v){O('sine',820,t,.1,G(t,v*.6,.09));O('sine',1670,t,.06,G(t,v*.18,.05));Nz(t,.012,Fl('bandpass',3000,1,G(t,v*.2,.01)))}};
+const hit=(id,t,v)=>{try{V[id](t,v)}catch(e){}};
+
+/* ---------- sequencer ---------- */
+let playing=false,step=0,next=0,timer=null,cur='A',qSec=null,qFill=false,inFill=false,chainIdx=-1,shownSec='A';const vis=[];
+const stepDur=()=>60/beat.bpm/TS[beat.ts].u;
+const chainList=()=>beat.chain.filter(Boolean);
+function sched(){const n=N();while(next<ctx.currentTime+.1){
+  if(step===0){if(qFill){inFill=true;qFill=false}else{inFill=false;
+    if(beat.chainOn&&chainList().length){chainIdx=(chainIdx+1)%chainList().length;cur=chainList()[chainIdx];if(cur==='F'){inFill=true;cur='A'}}
+    else if(qSec){cur=qSec;qSec=null}}}
+  const sec=inFill?'F':cur,p=beat.pats[sec],sw=TS[beat.ts].u===4&&step%2?beat.swing*stepDur()*.66:0;
+  pads().forEach(id=>{const v=p[id]&&p[id][step];if(v&&!(beat.mute||[]).includes(id))hit(id,Math.max(ctx.currentTime,next+sw),v===2?1:.62)});
+  vis.push([next,step,sec]);next+=stepDur();step=(step+1)%n}
+ timer=setTimeout(sched,25)}
+function start(){init();playing=true;step=0;chainIdx=-1;qSec=null;qFill=false;inFill=false;
+ if(prefs.sec==='F'){qFill=true;cur='A'}else cur=prefs.sec;shownSec=prefs.sec;next=ctx.currentTime+.06;sched();ui()}
+function stop(){playing=false;clearTimeout(timer);vis.length=0;showStep(-1);shownSec=prefs.sec;paint();ui()}
+const vsec=()=>playing?shownSec:prefs.sec;
+
+/* ---------- UI build ---------- */
+let swapA=null,editing=false;
+function buildPads(){$('pads').innerHTML=pads().map((id,i)=>`<div class="pad" data-i="${i}" data-id="${id}"><span class="dot"></span>${NAMES[id]}</div>`).join('')}
+function buildSteps(){const g=TS[beat.ts].g;let a=0;
+ $('steps').innerHTML=g.map((n,b)=>{const h=`<div class="beat" style="--n:${Math.max(...g)}"><i>${b+1}</i>`+Array.from({length:n},(_,j)=>`<div class="st${j===0?' first':''}" data-s="${a+j}"></div>`).join('')+'</div>';a+=n;return h}).join('')}
+function buildGrid(){const n=N(),g=TS[beat.ts].g,firsts=new Set();let a=0;g.forEach(x=>{firsts.add(a);a+=x});
+ const P=pads(),ord=[12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3].map(i=>P[i]);
+ $('grid').innerHTML=ord.map(id=>`<div class="gr" style="--n:${n}"><div class="gl" data-id="${id}">${NAMES[id]}<b class="mb" data-mute="${id}">M</b></div>`+Array.from({length:n},(_,i)=>`<div class="gc${firsts.has(i)&&i?' b2':''}" data-id="${id}" data-s="${i}"></div>`).join('')+'</div>').join('')}
+function rebuild(){buildPads();buildSteps();buildGrid();paint();ui();renderMenu()}
+function paint(){const p=beat.pats[vsec()],sel=prefs.sel,mute=beat.mute||[];
+ $('steps').querySelectorAll('.st').forEach(e=>{const v=p[sel][+e.dataset.s];e.classList.toggle('v1',v===1);e.classList.toggle('v2',v===2)});
+ $('grid').querySelectorAll('.gc').forEach(e=>{const v=p[e.dataset.id][+e.dataset.s];e.classList.toggle('v1',v===1);e.classList.toggle('v2',v===2)});
+ $('grid').querySelectorAll('.gl').forEach(e=>{e.classList.toggle('sel',e.dataset.id===sel);e.classList.toggle('mute',mute.includes(e.dataset.id))});
+ $('pads').querySelectorAll('.pad').forEach(e=>{const id=e.dataset.id;e.classList.toggle('sel',id===sel&&!editing);e.classList.toggle('m',mute.includes(id));e.classList.toggle('sw',editing&&swapA===+e.dataset.i);e.querySelector('.dot').classList.toggle('has',p[id].some(v=>v))});
+ $('sN').textContent=NAMES[sel];$('sI').textContent=`${beat.ts} · pattern ${vsec()==='F'?'FILL':vsec()}`;$('muteB').classList.toggle('on',mute.includes(sel));$('muteB').textContent=mute.includes(sel)?'MUTED':'MUTE'}
+let shown=-1;
+function showStep(s){document.querySelectorAll('.now').forEach(e=>e.classList.remove('now'));shown=s;if(s<0)return;
+ const e=$('steps').querySelector(`.st[data-s="${s}"]`);e&&e.classList.add('now');if(document.body.classList.contains('gv'))$('grid').querySelectorAll(`.gc[data-s="${s}"]`).forEach(c=>c.classList.add('now'))}
+function ui(){$('play').textContent=playing?'■ STOP':'▶ PLAY';$('play').classList.toggle('on',playing);$('bV').textContent=beat.bpm;
+ $('sec').querySelectorAll('button').forEach(b=>{const s=b.dataset.s;b.classList.toggle('on',s===vsec());b.classList.toggle('q',(s===qSec)||(s==='F'&&qFill))});
+ $('chainB').classList.toggle('on',!!beat.chainOn);$('tabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',(b.dataset.v==='grid')===document.body.classList.contains('gv')))}
+function renderMenu(){
+ $('chainEd').innerHTML=beat.chain.map((c,i)=>`<button class="btn${c?' dark':''}" data-i="${i}">${c?(c==='F'?'FILL':c):'–'}</button>`).join('');
+ $('tsSeg').innerHTML=Object.keys(TS).map(k=>`<button class="btn${k===beat.ts?' on':''}" data-ts="${k}">${k}</button>`).join('');
+ $('kit').value=beat.kit;$('lay').innerHTML=Object.keys(KITS[beat.kit].lay).map(k=>`<option>${k}</option>`).join('')+(prefs.custom[beat.kit]?'<option value="__c">My layout</option>':'');$('lay').value=prefs.custom[beat.kit]?'__c':prefs.layout[beat.kit];
+ $('swing').disabled=TS[beat.ts].u!==4}
+
+/* ---------- interactions ---------- */
+function swapPads(a,b){const L=pads().slice();[L[a],L[b]]=[L[b],L[a]];prefs.custom[beat.kit]=L;swapA=null;buildPads();buildGrid();renderMenu();paint();save()}
+let drag=null;const padAt=(x,y)=>{const el=document.elementFromPoint(x,y);return el&&el.closest?el.closest('.pad'):null};
+$('pads').addEventListener('pointermove',e=>{if(!drag)return;drag.moved=drag.moved||Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>8;const t=padAt(e.clientX,e.clientY);
+ document.querySelectorAll('.pad.over').forEach(x=>x!==t&&x.classList.remove('over'));if(drag.moved&&t&&+t.dataset.i!==drag.i)t.classList.add('over')});
+const endDrag=e=>{if(!drag)return;const d=drag;drag=null;document.querySelectorAll('.pad.over,.pad.drag').forEach(x=>x.classList.remove('over','drag'));
+ const t=padAt(e.clientX,e.clientY),ti=t?+t.dataset.i:-1;
+ if(d.moved){if(ti>=0&&ti!==d.i)swapPads(d.i,ti);else paint();return}
+ if(swapA===null){swapA=d.i;paint()}else if(swapA===d.i){swapA=null;paint()}else swapPads(swapA,d.i)};
+$('pads').addEventListener('pointerup',endDrag);$('pads').addEventListener('pointercancel',()=>{drag=null;document.querySelectorAll('.pad.over,.pad.drag').forEach(x=>x.classList.remove('over','drag'))});
+$('pads').addEventListener('pointerdown',e=>{const p=e.target.closest('.pad');if(!p)return;e.preventDefault();const i=+p.dataset.i,id=p.dataset.id;
+ if(editing){drag={i,x:e.clientX,y:e.clientY,moved:false};p.classList.add('drag');try{$('pads').setPointerCapture(e.pointerId)}catch(_){}return}
+ init();hit(id,ctx.currentTime,1);p.classList.add('hit');setTimeout(()=>p.classList.remove('hit'),90);prefs.sel=id;paint();save()});
+const toggleStep=(id,s)=>{const a=beat.pats[vsec()][id];a[s]=(a[s]+1)%3;if(a[s]&&!playing){init();hit(id,ctx.currentTime,a[s]===2?1:.62)}paint();save()};
+$('steps').addEventListener('pointerdown',e=>{const c=e.target.closest('.st');if(c)toggleStep(prefs.sel,+c.dataset.s)});
+$('grid').addEventListener('pointerdown',e=>{const c=e.target.closest('.gc'),l=e.target.closest('.gl');if(c)toggleStep(c.dataset.id,+c.dataset.s);const mb=e.target.closest('.mb');if(mb){toggleMute(mb.dataset.mute);return}if(l){prefs.sel=l.dataset.id;init();hit(l.dataset.id,ctx.currentTime,1);paint();save()}});
+function toggleMute(id){const m=beat.mute=beat.mute||[];m.includes(id)?m.splice(m.indexOf(id),1):m.push(id);paint();save()}
+$('muteB').onclick=()=>toggleMute(prefs.sel);
+$('play').onclick=()=>playing?stop():start();
+$('sec').onclick=e=>{const b=e.target.closest('button');if(!b)return;const s=b.dataset.s;
+ if(s==='F'){if(playing){qFill=true;ui();return}prefs.sec='F'}else{prefs.sec=s;if(playing){if(beat.chainOn){beat.chainOn=false}qSec=s===cur?null:s}}
+ paint();ui();save()};
+$('chainB').onclick=()=>{if(!chainList().length){toast('Set up your chain in MENU first');return}beat.chainOn=!beat.chainOn;chainIdx=-1;ui();save()};
+$('chainEd').onclick=e=>{const b=e.target.closest('button');if(!b)return;const o=['A','B','C','D','F',''],i=+b.dataset.i;beat.chain[i]=o[(o.indexOf(beat.chain[i]||'')+1)%o.length];renderMenu();save()};
+const setBpm=v=>{beat.bpm=Math.max(40,Math.min(220,Math.round(v)));ui();save()};
+let rep;const hold=(el,d)=>{el.addEventListener('pointerdown',()=>{setBpm(beat.bpm+d);rep=setInterval(()=>setBpm(beat.bpm+d),110)});['pointerup','pointerleave','pointercancel'].forEach(n=>el.addEventListener(n,()=>clearInterval(rep)))};
+hold($('bD'),-1);hold($('bU'),1);
+let taps=[];$('tap').onclick=()=>{const t=performance.now();taps=taps.filter(x=>t-x<2500);taps.push(t);if(taps.length>1)setBpm(60000/((taps[taps.length-1]-taps[0])/(taps.length-1)))};
+$('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;document.body.classList.toggle('gv',b.dataset.v==='grid');prefs.view=b.dataset.v;ui();save()};
+const panel=(id,open)=>{if(open)['menu','lib'].forEach(x=>x!==id&&$(x).classList.remove('open'));$(id).classList.toggle('open',open)};
+$('menuB').onclick=()=>panel('menu',!$('menu').classList.contains('open'));$('menuX').onclick=()=>panel('menu',false);
+$('libB').onclick=()=>{renderLib();panel('lib',!$('lib').classList.contains('open'))};$('libX').onclick=()=>panel('lib',false);
+let prev=null,tt,act=null;function toast(m,a){$('tMsg').textContent=m;act=a&&a.fn?a.fn:null;$('undo').textContent=a&&a.label?a.label:'Undo';$('undo').style.display=a?'':'none';$('toast').classList.add('show');clearTimeout(tt);tt=setTimeout(()=>$('toast').classList.remove('show'),a&&a.fn?7000:4500)}
+const snap=()=>{prev=JSON.stringify(beat)};
+$('undo').onclick=()=>{if(act){const f=act;act=null;$('toast').classList.remove('show');f();return}if(prev){beat=JSON.parse(prev);prev=null;fix();rebuild();save()}$('toast').classList.remove('show')};
+$('tsSeg').onclick=e=>{const b=e.target.closest('button');if(!b||b.dataset.ts===beat.ts)return;snap();const was=playing;if(was)stop();beat.ts=b.dataset.ts;fix();rebuild();save();toast('Time signature: '+beat.ts,true);if(was)start()};
+$('kit').innerHTML=Object.entries(KITS).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('');
+$('kit').onchange=e=>{beat.kit=e.target.value;if(!pads().includes(prefs.sel))pickSel();rebuild();save();
+ if(beat.kit==='kendang'){panel('menu',false);toast('Kendang kit on. Hear it in a starter beat:',{label:'Load Koplo',fn:()=>loadBeat(fromPreset(PRE[10]),'Koplo loaded')})}};
+$('lay').onchange=e=>{if(e.target.value!=='__c'){prefs.layout[beat.kit]=e.target.value;delete prefs.custom[beat.kit]}rebuild();save()};
+$('editB').onclick=()=>{editing=true;swapA=null;document.body.classList.add('edit');panel('menu',false);panel('lib',false);paint()};
+$('doneB').onclick=()=>{editing=false;swapA=null;document.body.classList.remove('edit');paint();ui()};
+$('clrB').onclick=()=>{snap();const s=vsec();allIds.forEach(id=>beat.pats[s][id].fill(0));paint();save();toast('Pattern '+(s==='F'?'FILL':s)+' cleared',true)};
+$('helpB').onclick=()=>{panel('menu',false);$('intro').classList.add('show')};
+$('introX').onclick=()=>{$('intro').classList.remove('show');prefs.seen=true;save()};
+const fmt={swing:v=>Math.round(v*100)+'%',vol:v=>Math.round(v*100)+'%'};
+['swing','vol'].forEach(k=>{const el=$(k),get=()=>k==='vol'?prefs.vol:beat.swing;el.value=get();el.nextElementSibling.textContent=fmt[k](get());
+ el.oninput=()=>{const v=+el.value;if(k==='vol'){prefs.vol=v;out&&out.gain.setTargetAtTime(v,ctx.currentTime,.02)}else beat.swing=v;el.nextElementSibling.textContent=fmt[k](v);save()}});
+const syncSwing=()=>{$('swing').value=beat.swing;$('swing').nextElementSibling.textContent=fmt.swing(beat.swing)};
+
+/* ---------- library ---------- */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderLib(){$('nm').value=beat.name||'';
+ $('mine').innerHTML=lib.length?lib.map(b=>`<div class="item"><div class="t" data-load="${b.id}">${esc(b.name)}<small>${b.data.ts} · ${b.data.bpm} BPM${b.id===beat.libId?' · open now':''}</small></div><button class="btn" data-del="${b.id}">Delete</button></div>`).join(''):'<p class="hint">Nothing saved yet. Make a beat, give it a name above, then tap Save.</p>';
+ $('genres').innerHTML=PRE.map((p,i)=>`<div class="item"><div class="t" data-pre="${i}">${p[0]}<small>${p[2]} · ${p[3]} BPM · ${KITS[p[1]].n}</small></div></div>`).join('')}
+const pickSel=()=>{const P=pads(),ord=[12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3].map(i=>P[i]),A=beat.pats.A;prefs.sel=ord.find(id=>A[id]&&A[id].some(v=>v))||P[12]};
+function loadBeat(b,msg){snap();const was=playing;if(was)stop();beat=JSON.parse(JSON.stringify(b));fix();pickSel();prefs.sec='A';syncSwing();rebuild();save();renderLib();toast(msg,true);if(was)start()}
+$('lib').addEventListener('click',e=>{const l=e.target.closest('[data-load]'),p=e.target.closest('[data-pre]'),d=e.target.closest('[data-del]');
+ if(l){const b=lib.find(x=>x.id===l.dataset.load);if(b){loadBeat(Object.assign({},b.data,{libId:b.id}),'Opened "'+b.name+'"');panel('lib',false)}}
+ if(p){loadBeat(fromPreset(PRE[+p.dataset.pre]),PRE[+p.dataset.pre][0]+' loaded');panel('lib',false)}
+ if(d){if(d.dataset.sure){lib=lib.filter(x=>x.id!==d.dataset.del);if(beat.libId===d.dataset.del)beat.libId=null;SS('ggbm_lib',lib);save();renderLib()}else{d.dataset.sure=1;d.textContent='Sure?';d.classList.add('on');setTimeout(()=>{if(d.isConnected){delete d.dataset.sure;d.textContent='Delete';d.classList.remove('on')}},3000)}}});
+$('nm').oninput=e=>{beat.name=e.target.value;save()};
+function store(asNew){const name=(beat.name||'').trim()||'My beat '+(lib.length+1);beat.name=name;const data=JSON.parse(JSON.stringify(beat));delete data.libId;
+ let it=!asNew&&beat.libId&&lib.find(x=>x.id===beat.libId);if(it){it.name=name;it.data=data}else{it={id:Date.now().toString(36),name,data};lib.unshift(it);beat.libId=it.id}
+ SS('ggbm_lib',lib);save();renderLib();toast('Saved "'+name+'"')}
+$('saveB').onclick=()=>store(false);$('saveNewB').onclick=()=>store(true);
+$('expB').onclick=()=>{const d=JSON.parse(JSON.stringify(beat));delete d.libId;$('code').value='GGBM1:'+btoa(unescape(encodeURIComponent(JSON.stringify(d))));toast('Code ready. Tap Copy to keep it.')};
+$('copyB').onclick=()=>{const v=$('code').value;if(!v){toast('Tap "Export this beat" first');return}try{navigator.clipboard.writeText(v).then(()=>toast('Copied'),()=>{$('code').select();toast('Select the code and copy it')})}catch(e){$('code').select();toast('Select the code and copy it')}};
+$('impB').onclick=()=>{try{const v=$('code').value.trim().replace(/^GGBM1:/,''),d=JSON.parse(decodeURIComponent(escape(atob(v))));if(!d.pats||!TS[d.ts])throw 0;
+ const it={id:Date.now().toString(36),name:(d.name||'Imported beat').slice(0,40),data:d};lib.unshift(it);SS('ggbm_lib',lib);loadBeat(Object.assign({},d,{libId:it.id}),'Imported "'+it.name+'"');$('code').value=''}catch(e){toast('That code did not work. Check it was copied whole.')}};
+
+/* ---------- loop ---------- */
+addEventListener('keydown',e=>{if(e.code==='Space'&&e.target===document.body){e.preventDefault();playing?stop():start()}});
+function frame(){if(playing&&ctx)while(vis.length&&vis[0][0]<=ctx.currentTime){const[,s,sec]=vis.shift();if(sec!==shownSec){shownSec=sec;paint()}showStep(s);if(s===0)ui()}requestAnimationFrame(frame)}
+document.body.classList.toggle('gv',prefs.view!=='pad');
+rebuild();syncSwing();if(!prefs.seen)$('intro').classList.add('show');requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>
